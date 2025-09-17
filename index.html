@@ -1,0 +1,140 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aura Boxing Club Sign-In</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+</head>
+<body class="bg-black text-yellow-400 flex items-center justify-center min-h-screen">
+    <div class="w-full max-w-md p-8 rounded-lg shadow-lg border border-yellow-500 bg-black">
+        <!-- Waiver Page -->
+        <div id="waiverPage" class="space-y-4">
+            <h1 class="text-5xl font-bold text-center text-yellow-400 mb-6" style="font-family: 'Bebas Neue', sans-serif;">Aura Boxing Club</h1>
+            <h2 class="text-2xl font-semibold text-center text-yellow-400" style="font-family: 'Bebas Neue', sans-serif;">Liability Waiver</h2>
+            <p class="text-sm text-yellow-400">
+                By participating in activities at Aura Boxing Club, whether as a member or walk-in, you acknowledge and agree that boxing and related physical activities involve inherent risks, including the risk of injury. Aura Boxing Club, its staff, and affiliates will not be liable for any injuries, damages, or losses sustained during participation. You assume full responsibility for any risks associated with your participation.
+            </p>
+            <div class="flex items-center space-x-2">
+                <input type="checkbox" id="waiverAgree" class="h-5 w-5 text-red-600 border-yellow-500 focus:ring-red-500 bg-gray-900 rounded">
+                <label for="waiverAgree" class="text-sm text-yellow-400">I agree to the terms of the liability waiver</label>
+            </div>
+            <button id="continueButton" class="w-full py-2 bg-yellow-500 text-black font-semibold rounded opacity-50 cursor-not-allowed hover:bg-red-600 transition duration-300" disabled>Continue to Sign In</button>
+        </div>
+
+        <!-- Sign-In Form -->
+        <div id="signInForm" class="hidden space-y-4">
+            <h1 class="text-5xl font-bold text-center text-yellow-400 mb-6" style="font-family: 'Bebas Neue', sans-serif;">Aura Boxing Club</h1>
+            <form id="signInFormInner" class="space-y-4">
+                <div>
+                    <label for="name" class="block text-sm font-medium text-yellow-400">Name</label>
+                    <input type="text" id="name" name="name" class="w-full p-2 mt-1 bg-gray-900 border border-yellow-500 rounded focus:outline-none focus:ring-2 focus:ring-red-500 text-yellow-400 placeholder-yellow-400" placeholder="Enter your name" required>
+                </div>
+                <div>
+                    <label for="phone" class="block text-sm font-medium text-yellow-400">Phone Number</label>
+                    <input type="tel" id="phone" name="phone" class="w-full p-2 mt-1 bg-gray-900 border border-yellow-500 rounded focus:outline-none focus:ring-2 focus:ring-red-500 text-yellow-400 placeholder-yellow-400" placeholder="Enter your phone number" required>
+                </div>
+                <button type="submit" class="w-full py-2 bg-yellow-500 text-black font-semibold rounded hover:bg-red-600 transition duration-300">Sign In</button>
+            </form>
+        </div>
+
+        <!-- Confirmation Page -->
+        <div id="confirmation" class="hidden text-center">
+            <h1 class="text-5xl font-bold text-center text-yellow-400 mb-6" style="font-family: 'Bebas Neue', sans-serif;">Aura Boxing Club</h1>
+            <p class="text-xl font-semibold text-yellow-400 mt-4" style="font-family: 'Bebas Neue', sans-serif;">All signed in, Box with Aura</p>
+        </div>
+    </div>
+
+    <script>
+        const waiverPage = document.getElementById('waiverPage');
+        const signInForm = document.getElementById('signInForm');
+        const signInFormInner = document.getElementById('signInFormInner');
+        const confirmation = document.getElementById('confirmation');
+        const waiverAgree = document.getElementById('waiverAgree');
+        const continueButton = document.getElementById('continueButton');
+        const scriptURL = 'YOUR_WEB_APP_URL'; // Replace with your Google Apps Script web app URL
+
+        // Enable Continue button when waiver is agreed
+        waiverAgree.addEventListener('change', () => {
+            if (waiverAgree.checked) {
+                continueButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                continueButton.disabled = false;
+            } else {
+                continueButton.classList.add('opacity-50', 'cursor-not-allowed');
+                continueButton.disabled = true;
+            }
+        });
+
+        // Show sign-in form when Continue is clicked
+        continueButton.addEventListener('click', () => {
+            if (waiverAgree.checked) {
+                waiverPage.classList.add('hidden');
+                signInForm.classList.remove('hidden');
+            }
+        });
+
+        // Handle form submission
+        signInFormInner.addEventListener('submit', e => {
+            e.preventDefault();
+            
+            fetch(scriptURL, { 
+                method: 'POST', 
+                body: new FormData(signInFormInner)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.result === 'success') {
+                    signInForm.classList.add('hidden');
+                    confirmation.classList.remove('hidden');
+                } else {
+                    alert('Error submitting data: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error!', error.message);
+                alert('Error submitting data. Please try again.');
+            });
+        });
+    </script>
+</body>
+</html>
